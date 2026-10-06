@@ -4,12 +4,16 @@ body {
   padding: 0;
   background: #071512;
   height: 100%;
+  overflow: hidden;
   overscroll-behavior: none;
 }
 
+/* position:fixed pins to the *visible* viewport — unlike 100vh, it never
+   extends under the mobile URL bar or system nav. This keeps the canvas
+   centered on-screen with no cut-off at either end. */
 #game {
-  width: 100vw;
-  height: 100vh;
+  position: fixed;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -19,4 +23,5 @@ body {
 
 canvas {
   touch-action: none;
+  display: block;
 }
