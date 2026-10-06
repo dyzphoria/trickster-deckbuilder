@@ -2,8 +2,6 @@ import Phaser from 'phaser'
 import { CARDS, VILLAGERS } from './cards.ts'
 import type { CardDef, VillagerDef } from './cards.ts'
 
-const W = 1280
-const H = 720
 const CARD_W = 160
 const CARD_H = 210
 const MAX_HAND = 5
@@ -57,6 +55,11 @@ export class GameScene extends Phaser.Scene {
   private hand: HandCard[] = []
   private paradox = 20
   private gameOver = false
+  private gw = 1280
+  private gh = 720
+  private portrait = false
+  private deckX = 1160
+  private deckY = 600
   private paradoxBar!: Phaser.GameObjects.Graphics
   private paradoxText!: Phaser.GameObjects.Text
   private logText!: Phaser.GameObjects.Text
@@ -70,12 +73,17 @@ export class GameScene extends Phaser.Scene {
     this.hand = []
     this.paradox = 20
     this.gameOver = false
+    this.gw = this.scale.width
+    this.gh = this.scale.height
+    this.portrait = this.gw < this.gh
+    this.deckX = this.portrait ? this.gw - 90 : 1160
+    this.deckY = this.portrait ? 170 : 600
 
     this.add
       .text(24, 20, 'TRICKSTER 🎭', { fontFamily: FONT, fontSize: '22px', color: '#d4af37' })
       .setOrigin(0, 0)
     this.logText = this.add
-      .text(24, 52, 'Drag lies onto villagers. SPACE draws a card.', {
+      .text(24, 52, 'Tap the deck (or SPACE) to draw. Drag lies onto villagers.', {
         fontFamily: FONT,
         fontSize: '14px',
         color: '#7fb8a8',
@@ -83,15 +91,18 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0, 0)
 
     this.add
-      .text(640, 26, 'PARADOX', { fontFamily: FONT, fontSize: '13px', color: '#e8d9a0' })
+      .text(this.gw / 2, 26, 'PARADOX', { fontFamily: FONT, fontSize: '13px', color: '#e8d9a0' })
       .setOrigin(0.5)
     this.paradoxBar = this.add.graphics()
     this.paradoxText = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '14px', color: '#e8d9a0' })
     this.redrawParadox()
 
-    VILLAGERS.forEach((def, i) => this.makeVillager(def, 310 + i * 330, 250))
+    VILLAGERS.forEach((def, i) => {
+      if (this.portrait) this.makeVillager(def, this.gw / 2, 300 + i * 310)
+      else this.makeVillager(def, 310 + i * 330, 250)
+    })
 
-    this.makeDeck(1160, 600)
+    this.makeDeck(this.deckX, this.deckY)
 
     this.input.on(
       'dragstart',
@@ -265,7 +276,7 @@ export class GameScene extends Phaser.Scene {
         break
       }
     }
-    const hc = this.makeCard(def, 1160, 600)
+    const hc = this.makeCard(def, this.deckX, this.deckY)
     this.hand.push(hc)
     this.layoutHand()
     this.children.bringToTop(hc.container)
@@ -274,8 +285,8 @@ export class GameScene extends Phaser.Scene {
   private layoutHand(): void {
     const n = this.hand.length
     this.hand.forEach((hc, i) => {
-      hc.homeX = 640 + (i - (n - 1) / 2) * 185
-      hc.homeY = 600
+      hc.homeX = this.gw / 2 + (i - (n - 1) / 2) * (this.portrait ? 118 : 185)
+      hc.homeY = this.gh - 120
       if (hc.container.getData('dragging')) return
       this.tweens.add({ targets: hc.container, x: hc.homeX, y: hc.homeY, duration: 220, ease: 'Cubic.out' })
     })
@@ -320,7 +331,7 @@ export class GameScene extends Phaser.Scene {
     this.setLog(`⚡ REALITY GLITCHES — ${v.def.name} remembers a different life.`)
     this.updateVillagerVisual(v)
     this.redrawParadox()
-    const flash = this.add.rectangle(W / 2, H / 2, W, H, 0x35f0a8, 0.25).setDepth(90)
+    const flash = this.add.rectangle(this.gw / 2, this.gh / 2, this.gw, this.gh, 0x35f0a8, 0.25).setDepth(90)
     this.tweens.add({ targets: flash, alpha: 0, duration: 400, onComplete: () => flash.destroy() })
   }
 
@@ -339,10 +350,10 @@ export class GameScene extends Phaser.Scene {
 
   private endGame(win: boolean): void {
     this.gameOver = true
-    const shade = this.add.rectangle(W / 2, H / 2, W, H, 0x030a08, 0).setDepth(100)
+    const shade = this.add.rectangle(this.gw / 2, this.gh / 2, this.gw, this.gh, 0x030a08, 0).setDepth(100)
     this.tweens.add({ targets: shade, alpha: 0.88, duration: 500 })
     this.add
-      .text(W / 2, H / 2 - 60, win ? 'THE VILLAGE BELIEVES 🏆' : 'BANISHED 🌑', {
+      .text(this.gw / 2, this.gh / 2 - 60, win ? 'THE VILLAGE BELIEVES 🏆' : 'BANISHED 🌑', {
         fontFamily: FONT,
         fontSize: '44px',
         color: win ? '#4ade80' : '#ef4444',
@@ -352,15 +363,15 @@ export class GameScene extends Phaser.Scene {
       .setDepth(101)
     this.add
       .text(
-        W / 2,
-        H / 2 + 10,
+        this.gw / 2,
+        this.gh / 2 + 10,
         win ? 'They would follow you into Ragnarök itself.' : 'The elders saw through every lie.',
         { fontFamily: FONT, fontSize: '18px', color: '#e8d9a0' }
       )
       .setOrigin(0.5)
       .setDepth(101)
     const again = this.add
-      .text(W / 2, H / 2 + 70, '[ R ] play again', { fontFamily: FONT, fontSize: '16px', color: '#d4af37' })
+      .text(this.gw / 2, this.gh / 2 + 70, '↻ tap to play again', { fontFamily: FONT, fontSize: '16px', color: '#d4af37' })
       .setOrigin(0.5)
       .setDepth(101)
     again.setInteractive({ useHandCursor: true })
@@ -373,17 +384,18 @@ export class GameScene extends Phaser.Scene {
     const g = this.paradoxBar
     g.clear()
     const w = 400
+    const cx = this.gw / 2
     g.fillStyle(0x06110e, 1)
-    g.fillRoundedRect(640 - w / 2, 36, w, 18, 8)
+    g.fillRoundedRect(cx - w / 2, 36, w, 18, 8)
     const p = this.paradox / 100
     const col = this.paradox < 40 ? 0x4ade80 : this.paradox < 75 ? 0xd4af37 : 0xef4444
     if (p > 0.01) {
       g.fillStyle(col, 1)
-      g.fillRoundedRect(640 - w / 2, 36, Math.max(w * p, 16), 18, 8)
+      g.fillRoundedRect(cx - w / 2, 36, Math.max(w * p, 16), 18, 8)
     }
     g.lineStyle(1, 0xd4af37, 0.5)
-    g.strokeRoundedRect(640 - w / 2, 36, w, 18, 8)
-    this.paradoxText.setPosition(640 + w / 2 + 14, 45).setOrigin(0, 0.5).setText(`${Math.round(this.paradox)}%`)
+    g.strokeRoundedRect(cx - w / 2, 36, w, 18, 8)
+    this.paradoxText.setPosition(cx + w / 2 + 14, 45).setOrigin(0, 0.5).setText(`${Math.round(this.paradox)}%`)
   }
 
   private setLog(msg: string): void {

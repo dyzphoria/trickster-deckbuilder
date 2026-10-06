@@ -4,6 +4,7 @@ body {
   padding: 0;
   background: #071512;
   height: 100%;
+  overscroll-behavior: none;
 }
 
 #game {
@@ -12,4 +13,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+canvas {
+  touch-action: none;
 }
