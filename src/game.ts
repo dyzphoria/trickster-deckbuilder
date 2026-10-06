@@ -5,7 +5,7 @@ import type { CardDef, VillagerDef } from './cards.ts'
 const CARD_W = 160
 const CARD_H = 210
 const MAX_HAND = 5
-const FONT = '[ADDRESS], "Times New Roman", "Segoe UI Emoji", "Noto Color Emoji", serif'
+const FONT = 'Georgia, "Times New Roman", "Segoe UI Emoji", "Noto Color Emoji", serif'
 
 type VState = 'devoted' | 'wary' | 'skeptical' | 'curious'
 type Stance = 'fox' | 'serpent' | 'crone' | null
@@ -14,6 +14,41 @@ interface Mul {
   belief: number
   paradox: number
   doubt: number
+}
+
+interface Layout {
+  vw: number
+  vh: number
+  vFirstY: number
+  vSpacing: number
+  emojiSize: number
+  emojiY: number
+  nameSize: number
+  nameY: number
+  statsSize: number
+  statsY: number
+  stateSize: number
+  stateY: number
+  claimsSize: number
+  claimsY: number
+  barW: number
+  barH: number
+  barY1: number
+  barY2: number
+  handScale: number
+  handY: number
+  deckW: number
+  deckH: number
+  deckInfoDy: number
+  paradoxW: number
+  hitX: number
+  hitY: number
+  floatSize: number
+  endW: number
+  endH: number
+  endX: number
+  endY: number
+  endLabelSize: number
 }
 
 interface Villager {
@@ -74,6 +109,7 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export class GameScene extends Phaser.Scene {
+  private L!: Layout
   private villagers: Villager[] = []
   private hand: HandCard[] = []
   private deck: CardDef[] = []
@@ -83,6 +119,7 @@ export class GameScene extends Phaser.Scene {
   private bluff = 3
   private stance: Stance = null
   private gameOver = false
+  private peeked: HandCard | null = null
   private gw = 1280
   private gh = 720
   private portrait = false
@@ -109,40 +146,65 @@ export class GameScene extends Phaser.Scene {
     this.bluff = 3
     this.stance = null
     this.gameOver = false
+    this.peeked = null
     this.gw = this.scale.width
     this.gh = this.scale.height
     this.portrait = this.gw < this.gh
-    this.deckX = this.portrait ? this.gw - 90 : 1160
-    this.deckY = this.portrait ? 170 : 600
+    this.L = this.portrait ? this.portraitLayout() : this.landscapeLayout()
+    this.deckX = this.portrait ? this.gw - 48 : 1160
+    this.deckY = this.portrait ? 68 : 600
 
     this.add
-      .text(24, 16, 'TRICKSTER 🎭', { fontFamily: FONT, fontSize: '20px', color: '#d4af37' })
-      .setOrigin(0, 0)
-    this.statusText = this.add
-      .text(24, 44, '', { fontFamily: FONT, fontSize: '15px', color: '#e8d9a0' })
-      .setOrigin(0, 0)
-    this.stanceText = this.portrait
-      ? this.add.text(24, 62, '', { fontFamily: FONT, fontSize: '14px', color: '#7fb8a8' }).setOrigin(0, 0)
-      : this.add.text(this.gw - 24, 44, '', { fontFamily: FONT, fontSize: '14px', color: '#7fb8a8' }).setOrigin(1, 0)
-    this.logText = this.add
-      .text(24, this.portrait ? 88 : 72, 'Draw lies. Spend Bluff. Contradict nothing — or everything.', {
+      .text(this.portrait ? 8 : 24, this.portrait ? 6 : 16, 'TRICKSTER 🎭', {
         fontFamily: FONT,
-        fontSize: '15px',
-        color: '#7fb8a8',
-        wordWrap: { width: this.gw - 160 },
+        fontSize: this.portrait ? '14px' : '20px',
+        color: '#d4af37',
       })
       .setOrigin(0, 0)
+    this.statusText = this.add
+      .text(this.portrait ? 8 : 24, this.portrait ? 24 : 44, '', {
+        fontFamily: FONT,
+        fontSize: this.portrait ? '11px' : '15px',
+        color: '#e8d9a0',
+      })
+      .setOrigin(0, 0)
+    this.stanceText = this.add
+      .text(this.portrait ? 8 : this.gw - 24, this.portrait ? 38 : 44, '', {
+        fontFamily: FONT,
+        fontSize: this.portrait ? '10px' : '14px',
+        color: '#7fb8a8',
+      })
+      .setOrigin(this.portrait ? 0 : 1, 0)
+    this.logText = this.add
+      .text(
+        this.portrait ? 8 : 24,
+        this.portrait ? 52 : 72,
+        'Draw lies. Spend Bluff. Contradict nothing — or everything.',
+        {
+          fontFamily: FONT,
+          fontSize: this.portrait ? '10px' : '15px',
+          color: '#7fb8a8',
+          wordWrap: { width: this.portrait ? this.gw - 100 : this.gw - 160 },
+        }
+      )
+      .setOrigin(0, 0)
 
-    this.add
-      .text(this.gw / 2, 26, 'PARADOX', { fontFamily: FONT, fontSize: '13px', color: '#e8d9a0' })
-      .setOrigin(0.5)
+    if (!this.portrait) {
+      this.add
+        .text(this.gw / 2, 26, 'PARADOX', { fontFamily: FONT, fontSize: '13px', color: '#e8d9a0' })
+        .setOrigin(0.5)
+    }
     this.paradoxBar = this.add.graphics()
-    this.paradoxText = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '14px', color: '#e8d9a0' })
+    this.paradoxText = this.add.text(0, 0, '', {
+      fontFamily: FONT,
+      fontSize: this.portrait ? '9px' : '14px',
+      color: '#e8d9a0',
+    })
     this.redrawParadox()
 
     VILLAGERS.forEach((def, i) => {
-      if (this.portrait) this.makeVillager(def, this.gw / 2, 300 + i * 310)
-      else this.makeVillager(def, 310 + i * 330, 250)
+      const x = this.portrait ? this.gw / 2 : 310 + i * 330
+      this.makeVillager(def, x, this.L.vFirstY + i * this.L.vSpacing)
     })
 
     this.makeDeck(this.deckX, this.deckY)
@@ -153,8 +215,9 @@ export class GameScene extends Phaser.Scene {
       const hc = obj.getData('hc') as HandCard | undefined
       if (!hc) return
       obj.setData('dragging', true)
+      if (this.peeked === hc) this.peeked = null
       this.children.bringToTop(obj)
-      this.tweens.add({ targets: obj, scale: 1.08, duration: 100 })
+      this.tweens.add({ targets: obj, scale: this.portrait ? 1 : 1.08, duration: 100 })
     })
 
     this.input.on(
@@ -176,7 +239,7 @@ export class GameScene extends Phaser.Scene {
       const hc = obj.getData('hc') as HandCard | undefined
       if (!hc) return
       obj.setData('dragging', false)
-      obj.setScale(1)
+      obj.setScale(this.L.handScale)
       this.villagers.forEach(v => v.container.setScale(1))
       const over = this.villagerAt(obj.x, obj.y)
       if (over && !this.gameOver) {
@@ -194,7 +257,7 @@ export class GameScene extends Phaser.Scene {
           return
         }
       }
-      this.tweens.add({ targets: obj, x: hc.homeX, y: hc.homeY, duration: 200, ease: 'Cubic.out' })
+      this.snapHome(hc)
     })
 
     this.input.keyboard!.on('keydown-SPACE', () => this.drawCard())
@@ -204,28 +267,123 @@ export class GameScene extends Phaser.Scene {
     this.updateStatus()
   }
 
+  private portraitLayout(): Layout {
+    const handY = this.gh - CARD_H / 2 - 6
+    const handTop = handY - CARD_H / 2
+    const endH = 36
+    const endY = handTop - 4 - endH / 2
+    const zoneTop = 116
+    const zoneBottom = endY - endH / 2 - 6
+    const vh = clamp(Math.floor((zoneBottom - zoneTop - 12) / 3), 86, 128)
+    const firstC = zoneTop + vh / 2
+    const lastC = zoneBottom - vh / 2
+    return {
+      vw: 240,
+      vh,
+      vFirstY: firstC,
+      vSpacing: (lastC - firstC) / 2,
+      emojiSize: 24,
+      emojiY: -vh * 0.32,
+      nameSize: 12,
+      nameY: -vh * 0.15,
+      statsSize: 10,
+      statsY: vh * 0.12,
+      stateSize: 10,
+      stateY: vh * 0.3,
+      claimsSize: 10,
+      claimsY: vh * 0.3,
+      barW: 150,
+      barH: 6,
+      barY1: -vh * 0.06,
+      barY2: -vh * 0.03,
+      handScale: 1,
+      handY,
+      deckW: 64,
+      deckH: 88,
+      deckInfoDy: 26,
+      paradoxW: 150,
+      hitX: 120,
+      hitY: vh / 2 + 10,
+      floatSize: 12,
+      endW: 140,
+      endH,
+      endX: 180,
+      endY,
+      endLabelSize: 11,
+    }
+  }
+
+  private landscapeLayout(): Layout {
+    return {
+      vw: 240,
+      vh: 260,
+      vFirstY: 250,
+      vSpacing: 330,
+      emojiSize: 46,
+      emojiY: -80,
+      nameSize: 18,
+      nameY: -34,
+      statsSize: 14,
+      statsY: 44,
+      stateSize: 16,
+      stateY: 66,
+      claimsSize: 12,
+      claimsY: 92,
+      barW: 160,
+      barH: 10,
+      barY1: 2,
+      barY2: 22,
+      handScale: 1,
+      handY: this.gh - 120,
+      deckW: 110,
+      deckH: 150,
+      deckInfoDy: 92,
+      paradoxW: 400,
+      hitX: 130,
+      hitY: 150,
+      floatSize: 16,
+      endW: 120,
+      endH: 50,
+      endX: 1150,
+      endY: 440,
+      endLabelSize: 15,
+    }
+  }
+
   private villagerAt(x: number, y: number): Villager | undefined {
-    return this.villagers.find(v => Math.abs(x - v.x) <= 130 && Math.abs(y - v.y) <= 150)
+    return this.villagers.find(
+      v => Math.abs(x - v.x) <= this.L.hitX && Math.abs(y - v.y) <= this.L.hitY
+    )
   }
 
   private makeVillager(def: VillagerDef, x: number, y: number): void {
+    const L = this.L
     const border = this.add.graphics()
     const bar = this.add.graphics()
-    const emoji = this.add.text(0, -80, def.emoji, { fontFamily: FONT, fontSize: '46px' }).setOrigin(0.5)
+    const emoji = this.add
+      .text(0, L.emojiY, def.emoji, { fontFamily: FONT, fontSize: `${L.emojiSize}px` })
+      .setOrigin(0.5)
     const name = this.add
-      .text(0, -34, def.name, { fontFamily: FONT, fontSize: '18px', color: '#e8d9a0', fontStyle: 'bold' })
+      .text(0, L.nameY, def.name, {
+        fontFamily: FONT,
+        fontSize: `${L.nameSize}px`,
+        color: '#e8d9a0',
+        fontStyle: 'bold',
+      })
       .setOrigin(0.5)
     const statsText = this.add
-      .text(0, 44, '', { fontFamily: FONT, fontSize: '14px', color: '#9fc7b8' })
+      .text(0, L.statsY, '', { fontFamily: FONT, fontSize: `${L.statsSize}px`, color: '#9fc7b8' })
       .setOrigin(0.5)
-    const stateText = this.add.text(0, 66, '', { fontFamily: FONT, fontSize: '16px' }).setOrigin(0.5)
+    const stateText = this.add
+      .text(0, L.stateY, '', { fontFamily: FONT, fontSize: `${L.stateSize}px` })
+      .setOrigin(0.5)
     const claimsText = this.add
-      .text(0, 92, '', {
+      .text(0, L.claimsY, '', {
         fontFamily: FONT,
-        fontSize: '12px',
+        fontSize: `${L.claimsSize}px`,
         color: '#7d8f87',
         align: 'center',
-        wordWrap: { width: 210 },
+        wordWrap: { width: L.vw - 40 },
       })
       .setOrigin(0.5, 0)
     const container = this.add.container(x, y, [border, emoji, name, bar, statsText, stateText, claimsText])
@@ -249,46 +407,67 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateVillagerVisual(v: Villager): void {
+    const L = this.L
     const s = stateOf(v)
+    const r = this.portrait ? 10 : 16
     v.border.clear()
     v.border.fillStyle(0x0e2a24, 0.9)
-    v.border.fillRoundedRect(-120, -130, 240, 260, 16)
+    v.border.fillRoundedRect(-L.vw / 2, -L.vh / 2, L.vw, L.vh, r)
     v.border.lineStyle(3, stateColor(s), 1)
-    v.border.strokeRoundedRect(-120, -130, 240, 260, 16)
+    v.border.strokeRoundedRect(-L.vw / 2, -L.vh / 2, L.vw, L.vh, r)
     v.bar.clear()
     v.bar.fillStyle(0x06110e, 1)
-    v.bar.fillRoundedRect(-80, 2, 160, 10, 5)
-    v.bar.fillRoundedRect(-80, 22, 160, 10, 5)
+    v.bar.fillRoundedRect(-L.barW / 2, L.barY1, L.barW, L.barH, 3)
+    v.bar.fillRoundedRect(-L.barW / 2, L.barY2, L.barW, L.barH, 3)
     v.bar.fillStyle(v.devoted ? 0xd4af37 : 0x4ade80, 1)
-    v.bar.fillRoundedRect(-80, 2, Math.max(4, 1.6 * v.belief), 10, 5)
+    v.bar.fillRoundedRect(-L.barW / 2, L.barY1, Math.max(L.barW * (v.belief / 100), 5), L.barH, 3)
     v.bar.fillStyle(v.suspicion >= 70 ? 0xef4444 : 0xb249f8, 1)
-    v.bar.fillRoundedRect(-80, 22, Math.max(4, 1.6 * v.suspicion), 10, 5)
-    v.statsText.setText(`💭 ${Math.round(v.belief)}  ·  ⚠️ ${Math.round(v.suspicion)}`)
-    v.stateText.setText(stateLabel(s))
-    v.stateText.setColor(
-      '#' + stateColor(s).toString(16).padStart(6, '0')
-    )
+    v.bar.fillRoundedRect(-L.barW / 2, L.barY2, Math.max(L.barW * (v.suspicion / 100), 5), L.barH, 3)
     const claims = [...v.claims.values()]
-    v.claimsText.setText(claims.length > 0 ? `swears by: ${claims.join(', ')}` : '')
+    if (this.portrait) {
+      v.statsText.setText(`💭${Math.round(v.belief)}  ⚠${Math.round(v.suspicion)}`)
+      const c = claims.length > 0 ? `  · by: ${claims.join(', ')}` : ''
+      v.stateText.setText(`${stateLabel(s)}${c}`)
+      v.claimsText.setText('')
+    } else {
+      v.statsText.setText(`💭${Math.round(v.belief)}  ⚠${Math.round(v.suspicion)}`)
+      v.stateText.setText(stateLabel(s))
+      v.claimsText.setText(claims.length > 0 ? `swears by: ${claims.join(', ')}` : '')
+    }
+    v.stateText.setColor('#' + stateColor(s).toString(16).padStart(6, '0'))
   }
 
   private makeDeck(x: number, y: number): void {
+    const L = this.L
     const stack = this.add.graphics()
+    const off = this.portrait ? 2 : 3
     for (let i = 2; i >= 0; i--) {
       stack.fillStyle(0x0e2a24, 1)
-      stack.fillRoundedRect(-55 + i * 3, -75 + i * 3, 110, 150, 10)
+      stack.fillRoundedRect(-L.deckW / 2 + i * off, -L.deckH / 2 + i * off, L.deckW, L.deckH, 8)
       stack.lineStyle(2, 0xd4af37, 0.8)
-      stack.strokeRoundedRect(-55 + i * 3, -75 + i * 3, 110, 150, 10)
+      stack.strokeRoundedRect(-L.deckW / 2 + i * off, -L.deckH / 2 + i * off, L.deckW, L.deckH, 8)
     }
     const label = this.add
-      .text(0, -10, '🎴\nDRAW\nSPACE', { fontFamily: FONT, fontSize: '15px', color: '#e8d9a0', align: 'center' })
+      .text(0, this.portrait ? -14 : -10, this.portrait ? '🎴\nDRAW' : '🎴\nDRAW\nSPACE', {
+        fontFamily: FONT,
+        fontSize: this.portrait ? '10px' : '15px',
+        color: '#e8d9a0',
+        align: 'center',
+      })
       .setOrigin(0.5)
     this.deckInfo = this.add
-      .text(0, 92, '', { fontFamily: FONT, fontSize: '13px', color: '#7d8f87' })
+      .text(0, L.deckInfoDy, '', {
+        fontFamily: FONT,
+        fontSize: this.portrait ? '9px' : '13px',
+        color: '#7d8f87',
+      })
       .setOrigin(0.5)
     const c = this.add.container(x, y, [stack, label, this.deckInfo])
-    c.setSize(110, 150)
-    c.setInteractive(new Phaser.Geom.Rectangle(-55, -75, 110, 150), Phaser.Geom.Rectangle.Contains)
+    c.setSize(L.deckW, L.deckH)
+    c.setInteractive(
+      new Phaser.Geom.Rectangle(-L.deckW / 2, -L.deckH / 2, L.deckW, L.deckH),
+      Phaser.Geom.Rectangle.Contains
+    )
     c.on('pointerdown', () => this.drawCard())
     this.updateDeckInfo()
   }
@@ -298,19 +477,26 @@ export class GameScene extends Phaser.Scene {
   }
 
   private makeEndTurn(): void {
-    const x = this.portrait ? this.gw - 90 : 1150
-    const y = this.portrait ? 1010 : 440
+    const L = this.L
     const g = this.add.graphics()
     g.fillStyle(0x0e2a24, 1)
-    g.fillRoundedRect(-60, -25, 120, 50, 12)
+    g.fillRoundedRect(-L.endW / 2, -L.endH / 2, L.endW, L.endH, 12)
     g.lineStyle(2, 0xd4af37, 0.9)
-    g.strokeRoundedRect(-60, -25, 120, 50, 12)
+    g.strokeRoundedRect(-L.endW / 2, -L.endH / 2, L.endW, L.endH, 12)
     const label = this.add
-      .text(0, 0, 'End Turn\n+3 ⚡', { fontFamily: FONT, fontSize: '15px', color: '#e8d9a0', align: 'center' })
+      .text(0, 0, this.portrait ? 'End Turn · +3⚡' : 'End Turn\n+3 ⚡', {
+        fontFamily: FONT,
+        fontSize: `${L.endLabelSize}px`,
+        color: '#e8d9a0',
+        align: 'center',
+      })
       .setOrigin(0.5)
-    const c = this.add.container(x, y, [g, label])
-    c.setSize(120, 50)
-    c.setInteractive(new Phaser.Geom.Rectangle(-60, -25, 120, 50), Phaser.Geom.Rectangle.Contains)
+    const c = this.add.container(L.endX, L.endY, [g, label])
+    c.setSize(L.endW, L.endH)
+    c.setInteractive(
+      new Phaser.Geom.Rectangle(-L.endW / 2, -L.endH / 2, L.endW, L.endH),
+      Phaser.Geom.Rectangle.Contains
+    )
     c.on('pointerdown', () => this.endTurn())
   }
 
@@ -320,51 +506,140 @@ export class GameScene extends Phaser.Scene {
     bg.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 12)
     bg.lineStyle(2, 0xd4af37, 0.9)
     bg.strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 12)
-    const glyph = this.add.text(0, -70, def.glyph, { fontFamily: FONT, fontSize: '36px' }).setOrigin(0.5)
-    const cost = this.add
-      .text(CARD_W / 2 - 16, -CARD_H / 2 + 14, `⚡${def.cost}`, { fontFamily: FONT, fontSize: '14px', color: '#e8d9a0' })
-      .setOrigin(0.5)
-    const name = this.add
-      .text(0, -30, def.name, {
-        fontFamily: FONT,
-        fontSize: '17px',
-        color: '#d4af37',
-        fontStyle: 'bold',
-        align: 'center',
-        wordWrap: { width: CARD_W - 16 },
-      })
-      .setOrigin(0.5)
-    const desc = this.add
-      .text(0, 14, def.desc, {
-        fontFamily: FONT,
-        fontSize: '13px',
-        color: '#9fc7b8',
-        align: 'center',
-        wordWrap: { width: CARD_W - 22 },
-      })
-      .setOrigin(0.5)
+    const parts: Phaser.GameObjects.GameObject[] = [bg]
     const bStr = def.belief >= 0 ? `+${def.belief}` : `${def.belief}`
     const sStr = def.suspicion >= 0 ? `+${def.suspicion}` : `${def.suspicion}`
     const pStr = def.paradox >= 0 ? `+${def.paradox}` : `${def.paradox}`
-    const stats = this.add
-      .text(0, 82, `💭 ${bStr}  ⚠️ ${sStr}  🌀 ${pStr}`, { fontFamily: FONT, fontSize: '13px', color: '#e8d9a0' })
-      .setOrigin(0.5)
-    const container = this.add.container(x, y, [bg, glyph, cost, name, desc, stats])
+    if (this.portrait) {
+      // Fanned hand: only the left ~50px strip of each card stays visible,
+      // so all key info is anchored to the left edge. Tap a card to lift it
+      // and read everything.
+      const glyph = this.add
+        .text(-50, -62, def.glyph, { fontFamily: FONT, fontSize: '22px' })
+        .setOrigin(0.5)
+      const name = this.add
+        .text(-72, -42, def.name, {
+          fontFamily: FONT,
+          fontSize: '10px',
+          color: '#d4af37',
+          fontStyle: 'bold',
+          wordWrap: { width: 46, useAdvancedWrap: true },
+        })
+        .setOrigin(0, 0)
+      const cost = this.add
+        .text(-72, -12, `⚡ costs ${def.cost}`, { fontFamily: FONT, fontSize: '9px', color: '#e8d9a0' })
+        .setOrigin(0, 0)
+      const sb = this.add
+        .text(-72, 4, `💭 ${bStr}`, { fontFamily: FONT, fontSize: '10px', color: '#4ade88' })
+        .setOrigin(0, 0)
+      const ss = this.add
+        .text(-72, 19, `⚠ ${sStr}`, { fontFamily: FONT, fontSize: '10px', color: '#b49af8' })
+        .setOrigin(0, 0)
+      const sp = this.add
+        .text(-72, 34, `🌀 ${pStr}`, { fontFamily: FONT, fontSize: '10px', color: '#e8d9a0' })
+        .setOrigin(0, 0)
+      parts.push(glyph, name, cost, sb, ss, sp)
+    } else {
+      const glyph = this.add.text(0, -70, def.glyph, { fontFamily: FONT, fontSize: '36px' }).setOrigin(0.5)
+      const cost = this.add
+        .text(CARD_W / 2 - 16, -CARD_H / 2 + 14, `⚡${def.cost}`, {
+          fontFamily: FONT,
+          fontSize: '14px',
+          color: '#e8d9a0',
+        })
+        .setOrigin(0.5)
+      const name = this.add
+        .text(0, -30, def.name, {
+          fontFamily: FONT,
+          fontSize: '17px',
+          color: '#d4af37',
+          fontStyle: 'bold',
+          align: 'center',
+          wordWrap: { width: CARD_W - 16 },
+        })
+        .setOrigin(0.5)
+      const desc = this.add
+        .text(0, 14, def.desc, {
+          fontFamily: FONT,
+          fontSize: '13px',
+          color: '#9fc7b8',
+          align: 'center',
+          wordWrap: { width: CARD_W - 22 },
+        })
+        .setOrigin(0.5)
+      const stats = this.add
+        .text(0, 82, `💭${bStr} ⚠${sStr} 🌀${pStr}`, {
+          fontFamily: FONT,
+          fontSize: '13px',
+          color: '#e8d9a0',
+        })
+        .setOrigin(0.5)
+      parts.push(glyph, cost, name, desc, stats)
+    }
+    const container = this.add.container(x, y, parts)
     container.setSize(CARD_W, CARD_H)
+    container.setScale(this.L.handScale)
     container.setInteractive(
       new Phaser.Geom.Rectangle(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H),
       Phaser.Geom.Rectangle.Contains
     )
     this.input.setDraggable(container)
+    container.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      container.setData('down', { x: p.x, y: p.y })
+    })
+    container.on('pointerup', (p: Phaser.Input.Pointer) => {
+      const down = container.getData('down') as { x: number; y: number } | undefined
+      container.setData('down', undefined)
+      if (!down) return
+      const moved = Math.abs(p.x - down.x) + Math.abs(p.y - down.y)
+      if (moved < 14) {
+        const hc = container.getData('hc') as HandCard | undefined
+        if (hc && !this.gameOver) this.togglePeek(hc)
+      }
+    })
     const hc: HandCard = { def, container, homeX: x, homeY: y }
     container.setData('hc', hc)
     return hc
   }
 
+  private togglePeek(hc: HandCard): void {
+    if (this.peeked === hc) {
+      this.peeked = null
+      this.snapHome(hc)
+      return
+    }
+    if (this.peeked) {
+      const old = this.peeked
+      this.peeked = null
+      this.snapHome(old)
+    }
+    this.peeked = hc
+    this.tweens.killTweensOf(hc.container)
+    this.children.bringToTop(hc.container)
+    this.tweens.add({
+      targets: hc.container,
+      y: hc.homeY - (this.portrait ? 215 : 95),
+      duration: 150,
+      ease: 'Cubic.out',
+    })
+  }
+
+  private snapHome(hc: HandCard): void {
+    this.tweens.killTweensOf(hc.container)
+    this.tweens.add({
+      targets: hc.container,
+      x: hc.homeX,
+      y: hc.homeY,
+      scale: this.L.handScale,
+      duration: 170,
+      ease: 'Cubic.out',
+    })
+  }
+
   private drawCard(): void {
     if (this.gameOver) return
     if (this.hand.length >= MAX_HAND) {
-      this.setLog('Hand is full — play something first.')
+      this.setLog('Hand is full — play or end the turn.')
       return
     }
     if (this.deck.length === 0) {
@@ -385,12 +660,23 @@ export class GameScene extends Phaser.Scene {
   }
 
   private layoutHand(): void {
+    this.peeked = null
     const n = this.hand.length
+    const spacing =
+      this.portrait && n > 1 ? Math.min(100, (this.gw - CARD_W) / (n - 1)) : this.portrait ? 0 : 185
     this.hand.forEach((hc, i) => {
-      hc.homeX = this.gw / 2 + (i - (n - 1) / 2) * (this.portrait ? 130 : 185)
-      hc.homeY = this.gh - 120
+      hc.homeX = this.gw / 2 + (i - (n - 1) / 2) * spacing
+      hc.homeY = this.L.handY
       if (hc.container.getData('dragging')) return
-      this.tweens.add({ targets: hc.container, x: hc.homeX, y: hc.homeY, duration: 220, ease: 'Cubic.out' })
+      this.tweens.killTweensOf(hc.container)
+      this.tweens.add({
+        targets: hc.container,
+        x: hc.homeX,
+        y: hc.homeY,
+        scale: this.L.handScale,
+        duration: 220,
+        ease: 'Cubic.out',
+      })
     })
   }
 
@@ -406,7 +692,7 @@ export class GameScene extends Phaser.Scene {
     if (this.gameOver) return false
     if (this.bluff < def.cost) {
       this.floatText(v, 'Not enough Bluff ⚡', '#ef4444', -40)
-      this.setLog('Not enough Bluff. End the turn to recover.')
+      this.setLog('Not enough Bluff ⚡. End the turn to recover.')
       return false
     }
     if (def.stance) {
@@ -484,6 +770,7 @@ export class GameScene extends Phaser.Scene {
 
   private consume(hc: HandCard): void {
     this.hand = this.hand.filter(h => h !== hc)
+    if (this.peeked === hc) this.peeked = null
     this.discard.push(hc.def)
     this.layoutHand()
     this.updateDeckInfo()
@@ -491,6 +778,7 @@ export class GameScene extends Phaser.Scene {
 
   private endTurn(): void {
     if (this.gameOver) return
+    this.peeked = null
     for (const hc of [...this.hand]) {
       hc.container.setData('dragging', false)
       this.discard.push(hc.def)
@@ -523,7 +811,7 @@ export class GameScene extends Phaser.Scene {
     this.paradox = clamp(this.paradox - 4)
 
     this.day++
-    this.bluff = Math.min(5, this.bluff + 3)
+    this.bluff = Math.min(6, this.bluff + 3)
     this.redrawParadox()
     this.updateStatus()
     this.updateDeckInfo()
@@ -549,7 +837,9 @@ export class GameScene extends Phaser.Scene {
     this.floatText(v, '⚡', '#35f0a8', -60)
     this.updateVillagerVisual(v)
     this.redrawParadox()
-    const flash = this.add.rectangle(this.gw / 2, this.gh / 2, this.gw, this.gh, 0x35f0a8, 0.25).setDepth(90)
+    const flash = this.add
+      .rectangle(this.gw / 2, this.gh / 2, this.gw, this.gh, 0x35f0a8, 0.25)
+      .setDepth(90)
     this.tweens.add({ targets: flash, alpha: 0, duration: 400, onComplete: () => flash.destroy() })
   }
 
@@ -576,11 +866,11 @@ export class GameScene extends Phaser.Scene {
     this.add
       .text(this.gw / 2, this.gh / 2 - 60, win ? 'THE VILLAGE BELIEVES 🏆' : 'THE TORCHES COME OUT 🌑', {
         fontFamily: FONT,
-        fontSize: this.portrait ? '34px' : '44px',
+        fontSize: this.portrait ? '22px' : '44px',
         color: win ? '#4ade80' : '#ef4444',
         fontStyle: 'bold',
         align: 'center',
-        wordWrap: { width: this.gw - 60 },
+        wordWrap: { width: this.gw - 40 },
       })
       .setOrigin(0.5)
       .setDepth(101)
@@ -591,14 +881,20 @@ export class GameScene extends Phaser.Scene {
         win
           ? `Three devoted hearts after ${this.day} days of beautiful lies.`
           : `${torchbearer ? torchbearer.def.name : 'The village'} saw through you.`,
-        { fontFamily: FONT, fontSize: '18px', color: '#e8d9a0', align: 'center', wordWrap: { width: this.gw - 80 } }
+        {
+          fontFamily: FONT,
+          fontSize: this.portrait ? '13px' : '18px',
+          color: '#e8d9a0',
+          align: 'center',
+          wordWrap: { width: this.gw - 60 },
+        }
       )
       .setOrigin(0.5)
       .setDepth(101)
     const again = this.add
       .text(this.gw / 2, this.gh / 2 + 70, '↻ tap to play again', {
         fontFamily: FONT,
-        fontSize: '18px',
+        fontSize: this.portrait ? '14px' : '18px',
         color: '#d4af37',
       })
       .setOrigin(0.5)
@@ -612,19 +908,25 @@ export class GameScene extends Phaser.Scene {
   private redrawParadox(): void {
     const g = this.paradoxBar
     g.clear()
-    const w = this.portrait ? 300 : 400
-    const cx = this.gw / 2
+    const w = this.L.paradoxW
+    const h = this.portrait ? 12 : 18
+    const cx = this.portrait ? this.gw - 12 - w / 2 : this.gw / 2
+    const y = this.portrait ? 6 : 36
     g.fillStyle(0x06110e, 1)
-    g.fillRoundedRect(cx - w / 2, 36, w, 18, 8)
+    g.fillRoundedRect(cx - w / 2, y, w, h, 6)
     const p = this.paradox / 100
     const col = this.paradox < 40 ? 0x4ade80 : this.paradox < 75 ? 0xd4af37 : 0xef4444
     if (p > 0.01) {
       g.fillStyle(col, 1)
-      g.fillRoundedRect(cx - w / 2, 36, Math.max(w * p, 16), 18, 8)
+      g.fillRoundedRect(cx - w / 2, y, Math.max(w * p, 12), h, 6)
     }
     g.lineStyle(1, 0xd4af37, 0.5)
-    g.strokeRoundedRect(cx - w / 2, 36, w, 18, 8)
-    this.paradoxText.setPosition(cx + w / 2 + 12, 45).setOrigin(0, 0.5).setText(`${Math.round(this.paradox)}%`)
+    g.strokeRoundedRect(cx - w / 2, y, w, h, 6)
+    if (this.portrait) {
+      this.paradoxText.setOrigin(0.5, 0.5).setPosition(cx, y + h / 2).setText(`PARADOX ${Math.round(this.paradox)}%`)
+    } else {
+      this.paradoxText.setOrigin(0, 0.5).setPosition(cx + w / 2 + 12, y + 9).setText(`${Math.round(this.paradox)}%`)
+    }
   }
 
   private updateStatus(): void {
@@ -639,7 +941,11 @@ export class GameScene extends Phaser.Scene {
 
   private floatText(v: Villager, msg: string, color: string, dy: number): void {
     const t = this.add
-      .text(v.x, v.y + dy, msg, { fontFamily: FONT, fontSize: '16px', color })
+      .text(v.x, v.y - this.L.vh / 2 - 10 + dy, msg, {
+        fontFamily: FONT,
+        fontSize: `${this.L.floatSize}px`,
+        color,
+      })
       .setOrigin(0.5)
       .setDepth(60)
     this.tweens.add({
