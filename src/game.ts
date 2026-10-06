@@ -119,25 +119,25 @@ export class GameScene extends Phaser.Scene {
       .text(24, 16, 'TRICKSTER 🎭', { fontFamily: FONT, fontSize: '20px', color: '#d4af37' })
       .setOrigin(0, 0)
     this.statusText = this.add
-      .text(24, 44, '', { fontFamily: FONT, fontSize: '13px', color: '#e8d9a0' })
+      .text(24, 44, '', { fontFamily: FONT, fontSize: '15px', color: '#e8d9a0' })
       .setOrigin(0, 0)
     this.stanceText = this.portrait
-      ? this.add.text(24, 62, '', { fontFamily: FONT, fontSize: '13px', color: '#7fb8a8' }).setOrigin(0, 0)
-      : this.add.text(this.gw - 24, 44, '', { fontFamily: FONT, fontSize: '13px', color: '#7fb8a8' }).setOrigin(1, 0)
+      ? this.add.text(24, 62, '', { fontFamily: FONT, fontSize: '14px', color: '#7fb8a8' }).setOrigin(0, 0)
+      : this.add.text(this.gw - 24, 44, '', { fontFamily: FONT, fontSize: '14px', color: '#7fb8a8' }).setOrigin(1, 0)
     this.logText = this.add
       .text(24, this.portrait ? 88 : 72, 'Draw lies. Spend Bluff. Contradict nothing — or everything.', {
         fontFamily: FONT,
-        fontSize: '13px',
+        fontSize: '15px',
         color: '#7fb8a8',
         wordWrap: { width: this.gw - 160 },
       })
       .setOrigin(0, 0)
 
     this.add
-      .text(this.gw / 2, 26, 'PARADOX', { fontFamily: FONT, fontSize: '12px', color: '#e8d9a0' })
+      .text(this.gw / 2, 26, 'PARADOX', { fontFamily: FONT, fontSize: '13px', color: '#e8d9a0' })
       .setOrigin(0.5)
     this.paradoxBar = this.add.graphics()
-    this.paradoxText = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '13px', color: '#e8d9a0' })
+    this.paradoxText = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '14px', color: '#e8d9a0' })
     this.redrawParadox()
 
     VILLAGERS.forEach((def, i) => {
@@ -213,16 +213,16 @@ export class GameScene extends Phaser.Scene {
     const bar = this.add.graphics()
     const emoji = this.add.text(0, -80, def.emoji, { fontFamily: FONT, fontSize: '46px' }).setOrigin(0.5)
     const name = this.add
-      .text(0, -34, def.name, { fontFamily: FONT, fontSize: '16px', color: '#e8d9a0', fontStyle: 'bold' })
+      .text(0, -34, def.name, { fontFamily: FONT, fontSize: '18px', color: '#e8d9a0', fontStyle: 'bold' })
       .setOrigin(0.5)
     const statsText = this.add
-      .text(0, 44, '', { fontFamily: FONT, fontSize: '12px', color: '#9fc7b8' })
+      .text(0, 44, '', { fontFamily: FONT, fontSize: '14px', color: '#9fc7b8' })
       .setOrigin(0.5)
-    const stateText = this.add.text(0, 66, '', { fontFamily: FONT, fontSize: '14px' }).setOrigin(0.5)
+    const stateText = this.add.text(0, 66, '', { fontFamily: FONT, fontSize: '16px' }).setOrigin(0.5)
     const claimsText = this.add
       .text(0, 92, '', {
         fontFamily: FONT,
-        fontSize: '10px',
+        fontSize: '12px',
         color: '#7d8f87',
         align: 'center',
         wordWrap: { width: 210 },
@@ -281,10 +281,10 @@ export class GameScene extends Phaser.Scene {
       stack.strokeRoundedRect(-55 + i * 3, -75 + i * 3, 110, 150, 10)
     }
     const label = this.add
-      .text(0, -10, '🎴\nDRAW\nSPACE', { fontFamily: FONT, fontSize: '14px', color: '#e8d9a0', align: 'center' })
+      .text(0, -10, '🎴\nDRAW\nSPACE', { fontFamily: FONT, fontSize: '15px', color: '#e8d9a0', align: 'center' })
       .setOrigin(0.5)
     this.deckInfo = this.add
-      .text(0, 92, '', { fontFamily: FONT, fontSize: '12px', color: '#7d8f87' })
+      .text(0, 92, '', { fontFamily: FONT, fontSize: '13px', color: '#7d8f87' })
       .setOrigin(0.5)
     const c = this.add.container(x, y, [stack, label, this.deckInfo])
     c.setSize(110, 150)
@@ -306,7 +306,7 @@ export class GameScene extends Phaser.Scene {
     g.lineStyle(2, 0xd4af37, 0.9)
     g.strokeRoundedRect(-60, -25, 120, 50, 12)
     const label = this.add
-      .text(0, 0, 'End Turn\n⏭', { fontFamily: FONT, fontSize: '14px', color: '#e8d9a0', align: 'center' })
+      .text(0, 0, 'End Turn\n+3 ⚡', { fontFamily: FONT, fontSize: '15px', color: '#e8d9a0', align: 'center' })
       .setOrigin(0.5)
     const c = this.add.container(x, y, [g, label])
     c.setSize(120, 50)
@@ -322,12 +322,12 @@ export class GameScene extends Phaser.Scene {
     bg.strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 12)
     const glyph = this.add.text(0, -70, def.glyph, { fontFamily: FONT, fontSize: '36px' }).setOrigin(0.5)
     const cost = this.add
-      .text(CARD_W / 2 - 16, -CARD_H / 2 + 14, `⚡${def.cost}`, { fontFamily: FONT, fontSize: '13px', color: '#e8d9a0' })
+      .text(CARD_W / 2 - 16, -CARD_H / 2 + 14, `⚡${def.cost}`, { fontFamily: FONT, fontSize: '14px', color: '#e8d9a0' })
       .setOrigin(0.5)
     const name = this.add
       .text(0, -30, def.name, {
         fontFamily: FONT,
-        fontSize: '15px',
+        fontSize: '17px',
         color: '#d4af37',
         fontStyle: 'bold',
         align: 'center',
@@ -337,7 +337,7 @@ export class GameScene extends Phaser.Scene {
     const desc = this.add
       .text(0, 14, def.desc, {
         fontFamily: FONT,
-        fontSize: '11px',
+        fontSize: '13px',
         color: '#9fc7b8',
         align: 'center',
         wordWrap: { width: CARD_W - 22 },
@@ -347,7 +347,7 @@ export class GameScene extends Phaser.Scene {
     const sStr = def.suspicion >= 0 ? `+${def.suspicion}` : `${def.suspicion}`
     const pStr = def.paradox >= 0 ? `+${def.paradox}` : `${def.paradox}`
     const stats = this.add
-      .text(0, 82, `💭 ${bStr}  ⚠️ ${sStr}  🌀 ${pStr}`, { fontFamily: FONT, fontSize: '12px', color: '#e8d9a0' })
+      .text(0, 82, `💭 ${bStr}  ⚠️ ${sStr}  🌀 ${pStr}`, { fontFamily: FONT, fontSize: '13px', color: '#e8d9a0' })
       .setOrigin(0.5)
     const container = this.add.container(x, y, [bg, glyph, cost, name, desc, stats])
     container.setSize(CARD_W, CARD_H)
@@ -387,7 +387,7 @@ export class GameScene extends Phaser.Scene {
   private layoutHand(): void {
     const n = this.hand.length
     this.hand.forEach((hc, i) => {
-      hc.homeX = this.gw / 2 + (i - (n - 1) / 2) * (this.portrait ? 118 : 185)
+      hc.homeX = this.gw / 2 + (i - (n - 1) / 2) * (this.portrait ? 130 : 185)
       hc.homeY = this.gh - 120
       if (hc.container.getData('dragging')) return
       this.tweens.add({ targets: hc.container, x: hc.homeX, y: hc.homeY, duration: 220, ease: 'Cubic.out' })
@@ -576,7 +576,7 @@ export class GameScene extends Phaser.Scene {
     this.add
       .text(this.gw / 2, this.gh / 2 - 60, win ? 'THE VILLAGE BELIEVES 🏆' : 'THE TORCHES COME OUT 🌑', {
         fontFamily: FONT,
-        fontSize: this.portrait ? '30px' : '42px',
+        fontSize: this.portrait ? '34px' : '44px',
         color: win ? '#4ade80' : '#ef4444',
         fontStyle: 'bold',
         align: 'center',
@@ -591,14 +591,14 @@ export class GameScene extends Phaser.Scene {
         win
           ? `Three devoted hearts after ${this.day} days of beautiful lies.`
           : `${torchbearer ? torchbearer.def.name : 'The village'} saw through you.`,
-        { fontFamily: FONT, fontSize: '16px', color: '#e8d9a0', align: 'center', wordWrap: { width: this.gw - 80 } }
+        { fontFamily: FONT, fontSize: '18px', color: '#e8d9a0', align: 'center', wordWrap: { width: this.gw - 80 } }
       )
       .setOrigin(0.5)
       .setDepth(101)
     const again = this.add
       .text(this.gw / 2, this.gh / 2 + 70, '↻ tap to play again', {
         fontFamily: FONT,
-        fontSize: '16px',
+        fontSize: '18px',
         color: '#d4af37',
       })
       .setOrigin(0.5)
@@ -639,7 +639,7 @@ export class GameScene extends Phaser.Scene {
 
   private floatText(v: Villager, msg: string, color: string, dy: number): void {
     const t = this.add
-      .text(v.x, v.y + dy, msg, { fontFamily: FONT, fontSize: '15px', color })
+      .text(v.x, v.y + dy, msg, { fontFamily: FONT, fontSize: '16px', color })
       .setOrigin(0.5)
       .setDepth(60)
     this.tweens.add({
