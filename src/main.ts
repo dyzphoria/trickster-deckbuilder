@@ -2,13 +2,26 @@ import Phaser from 'phaser'
 import { GameScene } from './game.ts'
 import './style.css'
 
-const portrait = window.innerWidth < window.innerHeight
+function designSize(): { width: number; height: number } {
+  const w = window.innerWidth
+  const h = window.innerHeight
+  if (w < h) {
+    // Portrait: design at ~1:1 CSS-pixel scale so font sizes mean what they say.
+    const dw = 360
+    const dh = Math.round((dw * h) / w)
+    return { width: dw, height: Math.min(Math.max(dh, 600), 1000) }
+  }
+  return { width: 1280, height: 720 }
+}
+
+const size = designSize()
+const portrait = size.width < size.height
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
-  width: portrait ? 720 : 1280,
-  height: portrait ? 1280 : 720,
+  width: size.width,
+  height: size.height,
   backgroundColor: '#0b1f1c',
   scale: {
     mode: Phaser.Scale.FIT,
